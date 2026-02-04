@@ -8,51 +8,55 @@ module.exports = async function (context, req) {
       return;
     }
 
-    // Mặc định Hà Nội
     const lat = Number(req.query.lat || 21.0152);
     const lon = Number(req.query.lon || 105.7999);
 
     /* =============================
-       1️⃣ LẤY LOCATION GẦN NHẤT
+       1️⃣ LOCATION
     ============================== */
-    const locationUrl =
+    const locUrl =
       `https://api.openaq.org/v3/locations` +
       `?coordinates=${lat},${lon}` +
-      `&radius=10000` +
-      `&limit=1`;
+      `&radius=10000&limit=1`;
 
-    const locRes = await fetch(locationUrl, {
+    const locRes = await fetch(locUrl, {
       headers: { "X-API-Key": apiKey }
     });
-
-    if (!locRes.ok) {
-      const t = await locRes.text();
-      throw new Error("Location fetch failed: " + t);
-    }
-
     const locData = await locRes.json();
-    if (!locData.results || locData.results.length === 0) {
-      context.res = {
-        status: 200,
-        body: { message: "No nearby location found" }
-      };
+
+    if (!locData.results?.length) {
+      context.res = { status: 200, body: { message: "No location found" } };
       return;
     }
 
     const location = locData.results[0];
-    const locationId = location.id;
 
     /* =============================
-       2️⃣ LẤY MEASUREMENTS
+       2️⃣ SENSOR (PM2.5)
     ============================== */
-    const measureUrl =
-      `https://api.openaq.org/v3/measurements` +
-      `?location_id=${locationId}` +
-      `&parameter=pm25` +
-      `&limit=24` +
-      `&sort=desc`;
+    const sensor = location.sensors.find(
+      s => s.parameter?.name === "pm25"
+    );
 
-    const meaRes = await fetch(measureUrl, {
+    if (!sensor) {
+      context.res = {
+        status: 200,
+        body: { message: "No PM2.5 sensor found", location }
+      };
+      return;
+    }
+
+    const sensorId = sensor.id;
+
+    /* =============================
+       3️⃣ MEASUREMENTS
+    ============================== */
+    const meaUrl =
+      `https://api.openaq.org/v3/measurements` +
+      `?sensor_id=${sensorId}` +
+      `&limit=24&sort=desc`;
+
+    const meaRes = await fetch(meaUrl, {
       headers: { "X-API-Key": apiKey }
     });
 
@@ -64,25 +68,28 @@ module.exports = async function (context, req) {
     const meaData = await meaRes.json();
 
     /* =============================
-       3️⃣ RESPONSE GỘP
+       4️⃣ RESPONSE
     ============================== */
     context.res = {
       status: 200,
       body: {
-        message: "Air quality data OK ✅",
-        inputLocation: { lat, lon },
+        message: "Air quality OK ✅",
+        input: { lat, lon },
         station: {
-          id: location.id,
           name: location.name,
           country: location.country.code,
           coordinates: location.coordinates
+        },
+        sensor: {
+          id: sensorId,
+          parameter: "pm25"
         },
         measurements: meaData.results
       }
     };
 
   } catch (err) {
-    context.log("Function error:", err);
+    context.log("API error:", err);
     context.res = {
       status: 500,
       body: {
