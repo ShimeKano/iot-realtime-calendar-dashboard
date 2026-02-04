@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8" />
-  <title>AQI Big Data Time-Series</title>
+  <title>AQI Big Data Time-Series Dashboard</title>
 
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -25,14 +25,16 @@
     .controls {
       margin: 20px 0;
       display: flex;
-      gap: 10px;
+      gap: 12px;
       align-items: center;
+      flex-wrap: wrap;
     }
 
     input, button, select {
       padding: 8px 12px;
       border-radius: 6px;
       border: none;
+      font-size: 14px;
     }
 
     button {
@@ -58,6 +60,12 @@
       padding: 20px;
       border-radius: 12px;
     }
+
+    footer {
+      margin-top: 20px;
+      opacity: 0.6;
+      font-size: 13px;
+    }
   </style>
 </head>
 
@@ -66,13 +74,15 @@
   <h1>📈 AQI Big Data Time-Series</h1>
 
   <div class="controls">
-    <label>Chọn ngày:</label>
+    <label>📅 Chọn ngày:</label>
     <input type="date" id="datePicker" />
-    
+
+    <label>📊 Chỉ số:</label>
     <select id="metric">
       <option value="pm25">PM2.5</option>
       <option value="aqi">AQI</option>
-      <option value="temp">Nhiệt độ</option>
+      <option value="temp">Nhiệt độ (°C)</option>
+      <option value="humidity">Độ ẩm (%)</option>
     </select>
 
     <button onclick="loadData()">Xem dữ liệu</button>
@@ -84,18 +94,23 @@
     <canvas id="chart"></canvas>
   </div>
 
+  <footer>
+    ⏱️ Dữ liệu được tự động cập nhật mỗi 5 phút & lưu trữ theo thời gian (time-series)
+  </footer>
+
   <script>
     const API_HISTORY = "/api/GetHistory";
     let chart;
 
+    // Tạo placeholder 24 giờ (khi chưa có data)
     function generatePlaceholder() {
       const labels = [];
       const values = [];
-
       const now = new Date();
+
       for (let i = 23; i >= 0; i--) {
         const t = new Date(now.getTime() - i * 3600000);
-        labels.push(t.getHours() + ":00");
+        labels.push(t.getHours().toString().padStart(2, "0") + ":00");
         values.push(null);
       }
 
@@ -115,17 +130,16 @@
             label,
             data: values,
             borderColor: "#38bdf8",
-            backgroundColor: "rgba(56,189,248,0.15)",
+            backgroundColor: "rgba(56,189,248,0.2)",
             tension: 0.3,
-            spanGaps: true
+            spanGaps: true,
+            pointRadius: 3
           }]
         },
         options: {
           responsive: true,
           scales: {
-            y: {
-              beginAtZero: true
-            }
+            y: { beginAtZero: true }
           }
         }
       });
@@ -136,34 +150,48 @@
       const metric = document.getElementById("metric").value;
       const notice = document.getElementById("notice");
 
-      notice.innerText = "⏳ Đang tải dữ liệu...";
+      notice.innerText = "⏳ Đang tải dữ liệu big data theo thời gian...";
 
       let url = API_HISTORY;
       if (date) url += "?date=" + date;
 
-      const res = await fetch(url);
-      const json = await res.json();
+      try {
+        const res = await fetch(url);
+        const json = await res.json();
 
-      if (!json.data || json.data.length === 0) {
-        const p = generatePlaceholder();
-        renderChart(p.labels, p.values, metric.toUpperCase());
-        notice.innerText =
-          "⚠️ Chưa có dữ liệu cho ngày này. Hệ thống đang tích lũy dữ liệu theo thời gian.";
-        return;
+        if (!json.data || json.data.length === 0) {
+          const p = generatePlaceholder();
+          renderChart(p.labels, p.values, metric.toUpperCase());
+          notice.innerText =
+            "⚠️ Chưa có dữ liệu cho ngày này. Hệ thống đang tự động tích lũy dữ liệu theo thời gian.";
+          return;
+        }
+
+        const labels = json.data.map(d =>
+          d.time
+            ? d.time.slice(11, 16)
+            : "--:--"
+        );
+
+        const values = json.data.map(d => d[metric] ?? null);
+
+        renderChart(labels, values, metric.toUpperCase());
+        notice.innerText = `✅ Đã tải ${json.count} bản ghi (time-series)`;
+      } catch (err) {
+        notice.innerText = "❌ Lỗi khi tải dữ liệu";
+        console.error(err);
       }
-
-      const labels = json.data.map(d => d.time.slice(11, 16));
-      const values = json.data.map(d => d[metric]);
-
-      renderChart(labels, values, metric.toUpperCase());
-      notice.innerText = `✅ Đã tải ${json.count} bản ghi`;
     }
 
-    // auto load hôm nay khi mở trang
+    // Load hôm nay + auto refresh mỗi 5 phút
     window.onload = () => {
       const today = new Date().toISOString().slice(0, 10);
       document.getElementById("datePicker").value = today;
       loadData();
+
+      setInterval(() => {
+        loadData();
+      }, 5 * 60 * 1000);
     };
   </script>
 
