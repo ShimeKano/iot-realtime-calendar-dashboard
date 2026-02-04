@@ -10,14 +10,15 @@ module.exports = async function (context, req) {
       return;
     }
 
-    const city = req.query.city || "Hanoi";
+    // 📍 Hà Nội – Cầu Giấy / Mỹ Đình
+    const lat = 21.0152;
+    const lon = 105.7999;
 
     const url =
-    `https://api.openaq.org/v3/locations` +
-    `?city=${encodeURIComponent(city)}` +
-    `&country=VN` +
-    `&limit=1`;
-
+      `https://api.openaq.org/v3/locations` +
+      `?coordinates=${lat},${lon}` +
+      `&radius=25000` +
+      `&limit=1`;
 
     const response = await fetch(url, {
       headers: {
@@ -38,8 +39,16 @@ module.exports = async function (context, req) {
       headers: {
         "Content-Type": "application/json"
       },
-      body: data
+      body: {
+        message: "GetRealtimeData API is alive 🚀",
+        location: {
+          lat,
+          lon
+        },
+        result: data.results[0] || null
+      }
     };
+
   } catch (err) {
     context.log("Function error:", err);
     context.res = {
