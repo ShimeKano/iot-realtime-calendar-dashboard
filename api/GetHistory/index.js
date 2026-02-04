@@ -14,7 +14,7 @@ module.exports = async function (context, req) {
     }
 
     const date = req.query.date; 
-    // format: YYYY-MM-DD (vd: 2026-02-04)
+    // YYYY-MM-DD (vd: 2026-02-04)
 
     const tableClient = TableClient.fromConnectionString(
       connectionString,
@@ -24,12 +24,16 @@ module.exports = async function (context, req) {
     let entities = [];
 
     if (date) {
+      // 🔍 Query theo ngày
       const filter = `PartitionKey eq '${date}'`;
-      for await (const entity of tableClient.listEntities({ queryOptions: { filter } })) {
+
+      for await (const entity of tableClient.listEntities({
+        queryOptions: { filter }
+      })) {
         entities.push(entity);
       }
     } else {
-      // nếu không truyền date → lấy 100 bản ghi mới nhất
+      // 🔁 Không truyền date → lấy tối đa 100 bản ghi gần nhất
       let count = 0;
       for await (const entity of tableClient.listEntities()) {
         entities.push(entity);
@@ -38,22 +42,27 @@ module.exports = async function (context, req) {
       }
     }
 
+    // 🕒 Sort theo thời gian (RowKey là ISO time)
+    entities.sort((a, b) => a.RowKey.localeCompare(b.RowKey));
+
     context.res = {
       status: 200,
       headers: { "Content-Type": "application/json" },
       body: {
+        message: "AQI history fetched 📈",
         count: entities.length,
         data: entities.map(e => ({
+          date: e.PartitionKey,
           time: e.RowKey,
-          aqi: e.aqi,
-          pm25: e.pm25,
-          temp: e.temp,
-          humidity: e.humidity
+          aqi: e.aqi ?? null,
+          pm25: e.pm25 ?? null,
+          temp: e.temp ?? null,
+          humidity: e.humidity ?? null
         }))
       }
     };
   } catch (err) {
-    context.log(err);
+    context.log.error(err);
     context.res = {
       status: 500,
       body: {
