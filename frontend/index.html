@@ -2,132 +2,170 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8" />
-  <title>Dashboard AQI Thời Gian Thực</title>
+  <title>AQI Big Data Time-Series</title>
 
+  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background: #0f172a;
+      background: linear-gradient(135deg, #0f172a, #020617);
       color: #e5e7eb;
-      padding: 20px;
+      font-family: Arial, sans-serif;
+      padding: 30px;
     }
 
     h1 {
       color: #38bdf8;
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
 
     .controls {
-      margin-bottom: 20px;
+      margin: 20px 0;
+      display: flex;
+      gap: 10px;
+      align-items: center;
     }
 
-    canvas {
-      background: #020617;
-      border-radius: 10px;
-      padding: 10px;
+    input, button, select {
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: none;
     }
 
     button {
-      padding: 8px 14px;
       background: #38bdf8;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
+      color: #020617;
       font-weight: bold;
+      cursor: pointer;
     }
 
-    input {
-      padding: 6px;
+    button:hover {
+      background: #0ea5e9;
+    }
+
+    .notice {
+      margin-top: 10px;
+      color: #facc15;
+      font-style: italic;
+    }
+
+    .chart-box {
+      margin-top: 30px;
+      background: #020617;
+      padding: 20px;
+      border-radius: 12px;
     }
   </style>
 </head>
+
 <body>
 
-<h1>📈 AQI Big Data Time-Series</h1>
+  <h1>📈 AQI Big Data Time-Series</h1>
 
-<div class="controls">
-  <label>Chọn ngày:</label>
-  <input type="date" id="datePicker" />
-  <button onclick="loadHistory()">Xem dữ liệu</button>
-</div>
+  <div class="controls">
+    <label>Chọn ngày:</label>
+    <input type="date" id="datePicker" />
+    
+    <select id="metric">
+      <option value="pm25">PM2.5</option>
+      <option value="aqi">AQI</option>
+      <option value="temp">Nhiệt độ</option>
+    </select>
 
-<canvas id="aqiChart" height="120"></canvas>
+    <button onclick="loadData()">Xem dữ liệu</button>
+  </div>
 
-<script>
-let chart;
+  <div id="notice" class="notice"></div>
 
-async function fetchRealtimeAndSave() {
-  await fetch(`/api/GetRealtimeData?lat=21.0152&lon=105.7999`);
-  console.log("Fetched realtime & saved");
-}
+  <div class="chart-box">
+    <canvas id="chart"></canvas>
+  </div>
 
-async function loadHistory() {
-  const date = document.getElementById("datePicker").value;
-  let url = "/api/GetHistory";
-  if (date) url += `?date=${date}`;
+  <script>
+    const API_HISTORY = "/api/GetHistory";
+    let chart;
 
-  const res = await fetch(url);
-  const json = await res.json();
+    function generatePlaceholder() {
+      const labels = [];
+      const values = [];
 
-  if (!json.data || json.data.length === 0) {
-    alert("Chưa có dữ liệu cho ngày này");
-    return;
-  }
-
-  const labels = json.data.map(d => d.time.substring(11, 19));
-  const aqi = json.data.map(d => d.aqi);
-  const pm25 = json.data.map(d => d.pm25);
-  const temp = json.data.map(d => d.temp);
-
-  renderChart(labels, aqi, pm25, temp);
-}
-
-function renderChart(labels, aqi, pm25, temp) {
-  if (chart) chart.destroy();
-
-  chart = new Chart(document.getElementById("aqiChart"), {
-    type: "line",
-    data: {
-      labels,
-      datasets: [
-        {
-          label: "AQI",
-          data: aqi,
-          borderColor: "#ef4444",
-          tension: 0.3
-        },
-        {
-          label: "PM2.5",
-          data: pm25,
-          borderColor: "#facc15",
-          tension: 0.3
-        },
-        {
-          label: "Nhiệt độ (°C)",
-          data: temp,
-          borderColor: "#22c55e",
-          tension: 0.3
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: { labels: { color: "#e5e7eb" } }
-      },
-      scales: {
-        x: { ticks: { color: "#e5e7eb" } },
-        y: { ticks: { color: "#e5e7eb" } }
+      const now = new Date();
+      for (let i = 23; i >= 0; i--) {
+        const t = new Date(now.getTime() - i * 3600000);
+        labels.push(t.getHours() + ":00");
+        values.push(null);
       }
-    }
-  });
-}
 
-// 🔁 AUTO FETCH MỖI 5 PHÚT
-fetchRealtimeAndSave();
-setInterval(fetchRealtimeAndSave, 5 * 60 * 1000);
-</script>
+      return { labels, values };
+    }
+
+    function renderChart(labels, values, label) {
+      const ctx = document.getElementById("chart").getContext("2d");
+
+      if (chart) chart.destroy();
+
+      chart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [{
+            label,
+            data: values,
+            borderColor: "#38bdf8",
+            backgroundColor: "rgba(56,189,248,0.15)",
+            tension: 0.3,
+            spanGaps: true
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          }
+        }
+      });
+    }
+
+    async function loadData() {
+      const date = document.getElementById("datePicker").value;
+      const metric = document.getElementById("metric").value;
+      const notice = document.getElementById("notice");
+
+      notice.innerText = "⏳ Đang tải dữ liệu...";
+
+      let url = API_HISTORY;
+      if (date) url += "?date=" + date;
+
+      const res = await fetch(url);
+      const json = await res.json();
+
+      if (!json.data || json.data.length === 0) {
+        const p = generatePlaceholder();
+        renderChart(p.labels, p.values, metric.toUpperCase());
+        notice.innerText =
+          "⚠️ Chưa có dữ liệu cho ngày này. Hệ thống đang tích lũy dữ liệu theo thời gian.";
+        return;
+      }
+
+      const labels = json.data.map(d => d.time.slice(11, 16));
+      const values = json.data.map(d => d[metric]);
+
+      renderChart(labels, values, metric.toUpperCase());
+      notice.innerText = `✅ Đã tải ${json.count} bản ghi`;
+    }
+
+    // auto load hôm nay khi mở trang
+    window.onload = () => {
+      const today = new Date().toISOString().slice(0, 10);
+      document.getElementById("datePicker").value = today;
+      loadData();
+    };
+  </script>
 
 </body>
 </html>
