@@ -1,3 +1,5 @@
+const fetch = require("node-fetch");
+
 module.exports = async function (context, req) {
   try {
     const apiKey = process.env.OPENAQ_API_KEY;
@@ -18,18 +20,19 @@ module.exports = async function (context, req) {
       `?coordinates=${lat},${lon}` +
       `&radius=10000` +
       `&parameter=pm25` +
-      `&limit=50` +
+      `&limit=20` +
       `&sort=desc`;
 
     const response = await fetch(url, {
       headers: {
-        "X-API-Key": apiKey
+        "X-API-Key": apiKey,
+        "Accept": "application/json"
       }
     });
 
     if (!response.ok) {
       const text = await response.text();
-      context.log("OpenAQ measurements error:", text);
+      context.log("OpenAQ error:", text);
       throw new Error("Failed to fetch measurements");
     }
 
@@ -37,11 +40,8 @@ module.exports = async function (context, req) {
 
     context.res = {
       status: 200,
-      headers: {
-        "Content-Type": "application/json"
-      },
       body: {
-        message: "GetMeasurements API OK ✅",
+        message: "GetMeasurements OK ✅",
         location: { lat, lon },
         count: data.results.length,
         measurements: data.results
