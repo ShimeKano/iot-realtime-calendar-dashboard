@@ -12,24 +12,27 @@ module.exports = async function (context, req) {
       return;
     }
 
-    // 🔥 KHÁC REALTIME Ở ĐÂY
+    // Lấy locationId từ query
     const locationId = req.query.locationId;
-    const date = req.query.date; // yyyy-mm-dd
 
-    if (!locationId || !date) {
+    if (!locationId) {
       context.res = {
         status: 400,
-        body: { error: "Missing locationId or date" }
+        body: { error: "Missing locationId" }
       };
       return;
     }
 
+    // Tham số optional
+    const parameter = req.query.parameter || "pm25";
+    const limit = req.query.limit || 24;
+
     const url =
       `https://api.openaq.org/v3/measurements` +
       `?location_id=${locationId}` +
-      `&date_from=${date}` +
-      `&date_to=${date}` +
-      `&limit=100`;
+      `&parameter=${parameter}` +
+      `&limit=${limit}` +
+      `&sort=desc`;
 
     const response = await fetch(url, {
       headers: {
@@ -50,7 +53,13 @@ module.exports = async function (context, req) {
       headers: {
         "Content-Type": "application/json"
       },
-      body: data
+      body: {
+        message: "GetMeasurements API is alive 🚀",
+        locationId,
+        parameter,
+        count: data.results.length,
+        results: data.results
+      }
     };
   } catch (err) {
     context.log("Function error:", err);
