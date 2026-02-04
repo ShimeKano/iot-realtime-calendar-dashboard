@@ -3,6 +3,7 @@ const fetch = require("node-fetch");
 module.exports = async function (context, req) {
   try {
     const apiKey = process.env.OPENAQ_API_KEY;
+
     if (!apiKey) {
       context.res = {
         status: 500,
@@ -11,16 +12,14 @@ module.exports = async function (context, req) {
       return;
     }
 
-    // Query params
+    // 🔥 KHÁC REALTIME Ở ĐÂY
     const locationId = req.query.locationId;
-    const parameter = req.query.parameter || "pm25";
-    const dateFrom = req.query.date_from;
-    const dateTo = req.query.date_to;
+    const date = req.query.date; // yyyy-mm-dd
 
-    if (!locationId) {
+    if (!locationId || !date) {
       context.res = {
         status: 400,
-        body: { error: "Missing locationId" }
+        body: { error: "Missing locationId or date" }
       };
       return;
     }
@@ -28,11 +27,9 @@ module.exports = async function (context, req) {
     const url =
       `https://api.openaq.org/v3/measurements` +
       `?location_id=${locationId}` +
-      `&parameter=${parameter}` +
-      `&date_from=${dateFrom}` +
-      `&date_to=${dateTo}` +
-      `&limit=100` +
-      `&sort=desc`;
+      `&date_from=${date}` +
+      `&date_to=${date}` +
+      `&limit=100`;
 
     const response = await fetch(url, {
       headers: {
@@ -43,7 +40,7 @@ module.exports = async function (context, req) {
     if (!response.ok) {
       const text = await response.text();
       context.log("OpenAQ error:", text);
-      throw new Error("OpenAQ measurements API failed");
+      throw new Error("OpenAQ API failed");
     }
 
     const data = await response.json();
@@ -56,7 +53,7 @@ module.exports = async function (context, req) {
       body: data
     };
   } catch (err) {
-    context.log("Function error:", err.message);
+    context.log("Function error:", err);
     context.res = {
       status: 500,
       body: {
