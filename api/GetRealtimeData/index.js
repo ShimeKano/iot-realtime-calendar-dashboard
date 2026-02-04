@@ -17,7 +17,9 @@ module.exports = async function (context, req) {
       return;
     }
 
-    // 🔹 1. Fetch AQICN realtime
+    /* ===============================
+       1️⃣ FETCH AQICN REALTIME
+       =============================== */
     const url = `https://api.waqi.info/feed/geo:${lat};${lon}/?token=${AQICN_KEY}`;
     const res = await fetch(url);
     const json = await res.json();
@@ -26,11 +28,17 @@ module.exports = async function (context, req) {
       throw new Error("AQICN API failed");
     }
 
-    const d = json.data;
+    const d = json.data || {};
     const iaqi = d.iaqi || {};
     const time = d.time || {};
 
-    // 🔹 2. Chuẩn hoá data
+    /* ===============================
+       2️⃣ CHUẨN HÓA DATA
+       =============================== */
+    const timeISO = time.iso
+      ? time.iso
+      : new Date().toISOString();
+
     const record = {
       aqi: d.aqi ?? null,
       dominentpol: d.dominentpol ?? null,
@@ -43,55 +51,61 @@ module.exports = async function (context, req) {
       wind: iaqi.w?.v ?? null,
       windgust: iaqi.wg?.v ?? null,
 
-      timeISO: time.iso ?? new Date().toISOString(),
+      timeISO,
       timeUnix: time.v ?? Math.floor(Date.now() / 1000),
-      timezone: time.tz ?? null
+      timezone: time.tz ?? "+07:00"
     };
 
-    // 🔹 3. Ghi vào Azure Table (Big Data Time-Series)
+    /* ===============================
+       3️⃣ GHI AZURE TABLE (BIG DATA)
+       =============================== */
     if (STORAGE_CONN) {
       const tableClient = TableClient.fromConnectionString(
         STORAGE_CONN,
         "AQIHistory"
       );
 
+      // tạo table nếu chưa có
       await tableClient.createTable().catch(() => {});
 
-      const dateKey = record.timeISO.slice(0, 10);
+      // PartitionKey = ngày
+      const dateKey = timeISO.slice(0, 10);
 
-      await tableClient.upsertEntity(
-        {
-          partitionKey: dateKey,
-          rowKey: record.timeISO,
-      
-          aqi: record.aqi,
-          dominentpol: record.dominentpol,
-      
-          pm25: record.pm25,
-          temp: record.temp,
-          humidity: record.humidity,
-          pressure: record.pressure,
-          dew: record.dew,
-          wind: record.wind,
-          windgust: record.windgust,
-      
-          timeUnix: record.timeUnix,
-          timezone: record.timezone
-        },
-        "Replace"
-      );
+      // RowKey = timestamp + random → KHÔNG BAO GIỜ TRÙNG
+      const rowKey = `${timeISO}_${Math.random().toString(36).slice(2, 8)}`;
 
+      await tableClient.createEntity({
+        partitionKey: dateKey,
+        rowKey,
+
+        aqi: record.aqi,
+        dominentpol: record.dominentpol,
+
+        pm25: record.pm25,
+        temp: record.temp,
+        humidity: record.humidity,
+        pressure: record.pressure,
+        dew: record.dew,
+        wind: record.wind,
+        windgust: record.windgust,
+
+        timeUnix: record.timeUnix,
+        timezone: record.timezone
+      });
     }
 
-    // 🔹 4. Trả realtime FULL (không mất gì)
+    /* ===============================
+       4️⃣ TRẢ REALTIME FULL
+       =============================== */
     context.res = {
       status: 200,
       body: {
         message: "Realtime AQI fetched & stored 🚀",
         location: { lat, lon },
-        ...record
+        record
       }
     };
+
   } catch (err) {
     context.log(err);
     context.res = {
