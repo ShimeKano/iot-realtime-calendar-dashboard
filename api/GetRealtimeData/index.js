@@ -59,24 +59,28 @@ module.exports = async function (context, req) {
 
       const dateKey = record.timeISO.slice(0, 10);
 
-      await tableClient.createEntity({
-        partitionKey: dateKey,
-        rowKey: record.timeISO,
+      await tableClient.upsertEntity(
+        {
+          partitionKey: dateKey,
+          rowKey: record.timeISO,
+      
+          aqi: record.aqi,
+          dominentpol: record.dominentpol,
+      
+          pm25: record.pm25,
+          temp: record.temp,
+          humidity: record.humidity,
+          pressure: record.pressure,
+          dew: record.dew,
+          wind: record.wind,
+          windgust: record.windgust,
+      
+          timeUnix: record.timeUnix,
+          timezone: record.timezone
+        },
+        "Replace"
+      );
 
-        aqi: record.aqi,
-        dominentpol: record.dominentpol,
-
-        pm25: record.pm25,
-        temp: record.temp,
-        humidity: record.humidity,
-        pressure: record.pressure,
-        dew: record.dew,
-        wind: record.wind,
-        windgust: record.windgust,
-
-        timeUnix: record.timeUnix,
-        timezone: record.timezone
-      });
     }
 
     // 🔹 4. Trả realtime FULL (không mất gì)
