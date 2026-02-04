@@ -3,6 +3,7 @@ const { TableClient } = require("@azure/data-tables");
 
 module.exports = async function (context, req) {
   try {
+    // ===== 1️⃣ ENV =====
     const AQICN_KEY = process.env.AQICN_API_KEY;
     const STORAGE_CONN = process.env.AZURE_STORAGE_CONNECTION_STRING;
 
@@ -17,9 +18,7 @@ module.exports = async function (context, req) {
       return;
     }
 
-    /* ===============================
-       1️⃣ FETCH AQICN REALTIME
-       =============================== */
+    // ===== 2️⃣ FETCH AQICN REALTIME =====
     const url = `https://api.waqi.info/feed/geo:${lat};${lon}/?token=${AQICN_KEY}`;
     const res = await fetch(url);
     const json = await res.json();
@@ -28,17 +27,11 @@ module.exports = async function (context, req) {
       throw new Error("AQICN API failed");
     }
 
-    const d = json.data || {};
+    const d = json.data;
     const iaqi = d.iaqi || {};
     const time = d.time || {};
 
-    /* ===============================
-       2️⃣ CHUẨN HÓA DATA
-       =============================== */
-    const timeISO = time.iso
-      ? time.iso
-      : new Date().toISOString();
-
+    // ===== 3️⃣ CHUẨN HOÁ DATA =====
     const record = {
       aqi: d.aqi ?? null,
       dominentpol: d.dominentpol ?? null,
@@ -51,14 +44,12 @@ module.exports = async function (context, req) {
       wind: iaqi.w?.v ?? null,
       windgust: iaqi.wg?.v ?? null,
 
-      timeISO,
+      timeISO: time.iso ?? new Date().toISOString(),
       timeUnix: time.v ?? Math.floor(Date.now() / 1000),
       timezone: time.tz ?? "+07:00"
     };
 
-    /* ===============================
-       3️⃣ GHI AZURE TABLE (BIG DATA)
-       =============================== */
+    // ===== 4️⃣ GHI BIG DATA TIME-SERIES =====
     if (STORAGE_CONN) {
       const tableClient = TableClient.fromConnectionString(
         STORAGE_CONN,
@@ -68,44 +59,44 @@ module.exports = async function (context, req) {
       // tạo table nếu chưa có
       await tableClient.createTable().catch(() => {});
 
-      // PartitionKey = ngày
-      const dateKey = timeISO.slice(0, 10);
+      const dateKey = record.timeISO.slice(0, 10);
 
-      // RowKey = timestamp + random → KHÔNG BAO GIỜ TRÙNG
-      const rowKey = `${timeISO}_${Math.random().toString(36).slice(2, 8)}`;
+      // 🔥 FIX QUAN TRỌNG: ROWKEY KHÔNG BAO GIỜ TRÙNG
+      const rowKey = `${record.timeISO}_${Date.now()}`;
 
-      await tableClient.createEntity({
-        partitionKey: dateKey,
-        rowKey,
+      await tableClient.upsertEntity(
+        {
+          partitionKey: dateKey,
+          rowKey: rowKey,
 
-        aqi: record.aqi,
-        dominentpol: record.dominentpol,
+          aqi: record.aqi,
+          dominentpol: record.dominentpol,
 
-        pm25: record.pm25,
-        temp: record.temp,
-        humidity: record.humidity,
-        pressure: record.pressure,
-        dew: record.dew,
-        wind: record.wind,
-        windgust: record.windgust,
+          pm25: record.pm25,
+          temp: record.temp,
+          humidity: record.humidity,
+          pressure: record.pressure,
+          dew: record.dew,
+          wind: record.wind,
+          windgust: record.windgust,
 
-        timeUnix: record.timeUnix,
-        timezone: record.timezone
-      });
+          timeISO: record.timeISO,
+          timeUnix: record.timeUnix,
+          timezone: record.timezone
+        },
+        "Replace"
+      );
     }
 
-    /* ===============================
-       4️⃣ TRẢ REALTIME FULL
-       =============================== */
+    // ===== 5️⃣ RESPONSE REALTIME =====
     context.res = {
       status: 200,
       body: {
         message: "Realtime AQI fetched & stored 🚀",
         location: { lat, lon },
-        record
+        ...record
       }
     };
-
   } catch (err) {
     context.log(err);
     context.res = {
