@@ -2,17 +2,46 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8" />
-  <title>IoT Realtime Calendar Dashboard</title>
-  <link rel="stylesheet" href="css/style.css">
+  <title>IoT Realtime AQI Dashboard</title>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
-  <h1>IoT Realtime Calendar Dashboard</h1>
+  <header>
+    <h1>🌏 Dashboard Chất lượng Không khí Realtime</h1>
+    <p>IoT Realtime Calendar Dashboard</p>
+  </header>
 
-  <input type="date" id="datePicker">
-  <button onclick="loadData()">Xem dữ liệu</button>
+  <section class="controls">
+    <button id="btnFetch">📡 Lấy dữ liệu realtime</button>
+    <span id="status">Chưa lấy dữ liệu</span>
+  </section>
 
-  <pre id="result">Chưa có dữ liệu</pre>
+  <section class="info">
+    <h2>📍 Vị trí</h2>
+    <p id="location">Hà Nội</p>
+
+    <h2>🌫 AQI hiện tại</h2>
+    <p id="aqiValue">--</p>
+  </section>
+
+  <section class="charts">
+    <h2>📈 Biểu đồ AQI theo thời gian (Realtime)</h2>
+    <canvas id="aqiChart"></canvas>
+    <p class="note">
+      * Biểu đồ thể hiện biến động AQI trong phiên truy cập (realtime, không phải dữ liệu lịch sử).
+    </p>
+  </section>
+
+  <section class="charts">
+    <h2>📊 Thông số môi trường</h2>
+    <canvas id="paramChart"></canvas>
+  </section>
 
   <script src="js/api.js"></script>
+  <script src="js/charts.js"></script>
 </body>
 </html>
