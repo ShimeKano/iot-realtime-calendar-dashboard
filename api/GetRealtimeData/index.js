@@ -12,7 +12,12 @@ module.exports = async function (context, req) {
 
     const city = req.query.city || "Hanoi";
 
-    const url = `https://api.openaq.org/v3/locations?city=${encodeURIComponent(city)}&limit=1`;
+    const url =
+    `https://api.openaq.org/v3/locations` +
+    `?city=${encodeURIComponent(city)}` +
+    `&country=VN` +
+    `&limit=1`;
+
 
     const response = await fetch(url, {
       headers: {
