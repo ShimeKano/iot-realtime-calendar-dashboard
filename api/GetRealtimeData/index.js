@@ -3,79 +3,97 @@ const { TableClient } = require("@azure/data-tables");
 
 module.exports = async function (context, req) {
   try {
-    const AQI_KEY = process.env.AQICN_API_KEY;
-    const STORAGE = process.env.AZURE_STORAGE_CONNECTION_STRING;
+    const AQICN_KEY = process.env.AQICN_API_KEY;
+    const STORAGE_CONN = process.env.AZURE_STORAGE_CONNECTION_STRING;
 
-    if (!AQI_KEY || !STORAGE) {
+    const lat = req.query.lat;
+    const lon = req.query.lon;
+
+    if (!AQICN_KEY || !lat || !lon) {
       context.res = {
-        status: 500,
-        body: { error: "Missing AQICN_API_KEY or AZURE_STORAGE_CONNECTION_STRING" }
+        status: 400,
+        body: { error: "Missing AQICN_API_KEY or lat/lon" }
       };
       return;
     }
 
-    const lat = req.query.lat || "21.0152";
-    const lon = req.query.lon || "105.7999";
-
-    const url = `https://api.waqi.info/feed/geo:${lat};${lon}/?token=${AQI_KEY}`;
-    const response = await fetch(url);
-    const json = await response.json();
+    // 🔹 1. Fetch AQICN realtime
+    const url = `https://api.waqi.info/feed/geo:${lat};${lon}/?token=${AQICN_KEY}`;
+    const res = await fetch(url);
+    const json = await res.json();
 
     if (json.status !== "ok") {
-      throw new Error("AQICN API returned error");
+      throw new Error("AQICN API failed");
     }
 
-    const data = json.data;
+    const d = json.data;
+    const iaqi = d.iaqi || {};
+    const time = d.time || {};
 
-    // ===== SAVE TO TABLE STORAGE =====
-    const tableClient = TableClient.fromConnectionString(
-      STORAGE,
-      "AQIHistory"
-    );
+    // 🔹 2. Chuẩn hoá data
+    const record = {
+      aqi: d.aqi ?? null,
+      dominentpol: d.dominentpol ?? null,
 
-    const timeISO = data.time.iso;              // 2026-02-04T15:00:00+07:00
-    const date = timeISO.split("T")[0];         // YYYY-MM-DD
+      pm25: iaqi.pm25?.v ?? null,
+      temp: iaqi.t?.v ?? null,
+      humidity: iaqi.h?.v ?? null,
+      pressure: iaqi.p?.v ?? null,
+      dew: iaqi.dew?.v ?? null,
+      wind: iaqi.w?.v ?? null,
+      windgust: iaqi.wg?.v ?? null,
 
-    const entity = {
-      partitionKey: date,
-      rowKey: timeISO,
-
-      aqi: data.aqi,
-      dominentpol: data.dominentpol ?? null,
-
-      pm25: data.iaqi?.pm25?.v ?? null,
-      temp: data.iaqi?.t?.v ?? null,
-      humidity: data.iaqi?.h?.v ?? null,
-      pressure: data.iaqi?.p?.v ?? null,
-      wind: data.iaqi?.w?.v ?? null,
-      windgust: data.iaqi?.wg?.v ?? null,
-      dew: data.iaqi?.dew?.v ?? null
+      timeISO: time.iso ?? new Date().toISOString(),
+      timeUnix: time.v ?? Math.floor(Date.now() / 1000),
+      timezone: time.tz ?? null
     };
 
-    await tableClient.upsertEntity(entity);
+    // 🔹 3. Ghi vào Azure Table (Big Data Time-Series)
+    if (STORAGE_CONN) {
+      const tableClient = TableClient.fromConnectionString(
+        STORAGE_CONN,
+        "AQIHistory"
+      );
 
-    // ===== FULL RESPONSE (GIỐNG AQICN) =====
+      await tableClient.createTable().catch(() => {});
+
+      const dateKey = record.timeISO.slice(0, 10);
+
+      await tableClient.createEntity({
+        partitionKey: dateKey,
+        rowKey: record.timeISO,
+
+        aqi: record.aqi,
+        dominentpol: record.dominentpol,
+
+        pm25: record.pm25,
+        temp: record.temp,
+        humidity: record.humidity,
+        pressure: record.pressure,
+        dew: record.dew,
+        wind: record.wind,
+        windgust: record.windgust,
+
+        timeUnix: record.timeUnix,
+        timezone: record.timezone
+      });
+    }
+
+    // 🔹 4. Trả realtime FULL (không mất gì)
     context.res = {
       status: 200,
       body: {
-        message: "Realtime AQI fetched 🚀",
-        location: {
-          lat,
-          lon
-        },
-        aqi: data.aqi,
-        dominentpol: data.dominentpol,
-        iaqi: data.iaqi,
-        time: data.time
+        message: "Realtime AQI fetched & stored 🚀",
+        location: { lat, lon },
+        ...record
       }
     };
-
   } catch (err) {
     context.log(err);
     context.res = {
       status: 500,
       body: {
-        error: "Realtime AQI fetch failed",
+        error: "Internal Server Error",
         detail: err.message
       }
     };
