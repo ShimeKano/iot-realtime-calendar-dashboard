@@ -1,63 +1,76 @@
-# IoT Realtime Calendar Dashboard using Azure
+# IoT Realtime Calendar Dashboard (Azure)
 
-## 📌 Overview
-This project is a web-based dashboard that displays real-time air quality data
-using a calendar and interactive charts. The system is built using cloud-native
-architecture on Microsoft Azure and consumes public IoT datasets via API.
+## 📌 Giới thiệu
+**IoT Realtime Calendar Dashboard** là một ứng dụng web hiển thị dữ liệu chất lượng không khí
+(AQI, PM2.5, nhiệt độ, độ ẩm, áp suất…) theo **thời gian thực**, kết hợp với **lịch và biểu đồ trực quan**.
 
-Users can select a date on the calendar to view environmental data such as
-AQI and PM2.5 in real time.
+Hệ thống được xây dựng theo kiến trúc **Cloud-native** trên nền tảng **Microsoft Azure**,
+khai thác dữ liệu từ **nguồn dữ liệu IoT công khai** thông qua API, không cần tải dataset về máy.
 
----
-
-## 🎯 Objectives
-- Visualize IoT environmental data in real time
-- Apply Big Data concepts with time-series data
-- Deploy a fully online cloud application
-- Use public datasets with clear and verifiable sources
+👉 Website demo (online):  
+**https://agreeable-river-0990df500.6.azurestaticapps.net/**
 
 ---
 
-## 🏗️ System Architecture
-
-Public IoT Dataset (OpenAQ / WAQI)
-        ↓
-Azure Functions (Serverless Backend)
-        ↓
-Frontend Web App (Calendar + Charts)
-        ↓
-User Browser
-
-- No local server
-- No dataset download
-- Real-time data processing
+## 🎯 Mục tiêu của đề tài
+- Ứng dụng dữ liệu IoT môi trường theo thời gian thực
+- Minh họa khái niệm **Big Data – Time-series data**
+- Xây dựng hệ thống **Serverless + Cloud**
+- Trực quan hóa dữ liệu bằng lịch và biểu đồ
+- Triển khai hoàn chỉnh một hệ thống online
 
 ---
 
-## 📊 Dataset Information
-- Dataset Name: OpenAQ
-- Type: Public Open Data
-- Source: https://openaq.org/
-- Data includes:
-  - PM2.5
-  - PM10
-  - AQI
-  - Time-series environmental data
-- Access Method: REST API (Real-time)
+## 🏗️ Kiến trúc hệ thống
 
-Detailed dataset description is available in `docs/dataset.md`.
+Nguồn dữ liệu IoT công khai (AQICN)
+↓
+Azure Functions (Serverless API)
+↓
+Frontend Web (Calendar + Charts)
+↓
+Trình duyệt người dùng
 
----
 
-## 🧩 Features
-- Calendar view to select specific dates
-- Real-time data retrieval based on selected date
-- Interactive charts displaying hourly data
-- Fully deployed online via GitHub and Azure
+**Đặc điểm:**
+- Không sử dụng server truyền thống
+- Không lưu trữ dataset cục bộ
+- Dữ liệu được lấy theo thời gian thực qua REST API
 
 ---
 
-## 🛠️ Technologies Used
+## 📊 Nguồn dữ liệu (Dataset)
+
+### 🔹 Dataset chính
+- **Tên**: World Air Quality Index (AQICN)
+- **Loại**: Public IoT Open Data
+- **Website**: https://aqicn.org/
+- **Hình thức truy cập**: REST API (Realtime)
+
+### 🔹 Dữ liệu bao gồm
+- AQI (Air Quality Index)
+- PM2.5
+- Nhiệt độ (Temperature)
+- Độ ẩm (Humidity)
+- Áp suất (Pressure)
+- Gió (Wind speed, gust)
+
+> ⚠️ Lưu ý học thuật:  
+> Dữ liệu được truy xuất **theo thời gian thực tại thời điểm người dùng truy cập**.  
+> Các biểu đồ theo ngày được xây dựng nhằm **minh họa cách tổ chức và trực quan hóa dữ liệu time-series** trong Big Data, không phải hệ thống lưu trữ lịch sử dài hạn.
+
+---
+
+## 🧩 Chức năng chính
+- Hiển thị lịch để chọn ngày quan sát
+- Lấy dữ liệu môi trường theo vị trí (tọa độ)
+- Hiển thị AQI và các chỉ số môi trường
+- Biểu đồ trực quan (Chart.js)
+- Ứng dụng chạy hoàn toàn online
+
+---
+
+## 🛠️ Công nghệ sử dụng
 
 ### Frontend
 - HTML, CSS, JavaScript
@@ -66,41 +79,47 @@ Detailed dataset description is available in `docs/dataset.md`.
 
 ### Backend
 - Azure Functions (Node.js)
-- REST API (Real-time data fetching)
+- REST API (AQICN)
 
-### Cloud Platform
+### Cloud
 - Azure Static Web Apps
-- Azure Functions
+- Azure Functions (Serverless)
 
 ---
 
-## 🚀 Deployment
-This project is deployed using GitHub integration with Azure Static Web Apps.
+## 🚀 Triển khai (Deployment)
+Hệ thống được deploy tự động bằng **GitHub + Azure Static Web Apps**:
 
-Deployment steps:
-1. Push code to GitHub repository
-2. Connect repository to Azure Static Web Apps
-3. Azure automatically builds and deploys the application
+1. Push source code lên GitHub
+2. Kết nối repository với Azure Static Web Apps
+3. Azure tự động build và deploy
 
-No local installation is required.
-
----
-
-## 📁 Project Structure
-- `frontend/` : Web UI (calendar and charts)
-- `api/` : Azure Functions for real-time data access
-- `data-schema/` : Data model definition
-- `docs/` : Documentation and dataset references
+➡️ Người dùng chỉ cần trình duyệt, **không cần cài đặt gì thêm**.
 
 ---
 
-## 👨‍🎓 Academic Purpose
-This project is developed for educational purposes to demonstrate:
-- IoT data consumption
-- Big Data time-series visualization
-- Cloud-native application design
+## 📁 Cấu trúc thư mục
+
+iot-realtime-calendar-dashboard/
+│
+├── frontend/ # Giao diện web
+├── api/ # Azure Functions (Realtime API)
+├── data-schema/ # Mô hình dữ liệu
+├── docs/ # Tài liệu mô tả
+└── README.md
+
 
 ---
 
-## 📜 License
-This project uses publicly available datasets and is intended for academic use only.
+## 👨‍🎓 Mục đích học thuật
+Đề tài được thực hiện nhằm phục vụ:
+- Môn học IoT / Big Data / Cloud Computing
+- Minh họa cách tiêu thụ dữ liệu IoT thời gian thực
+- Thiết kế hệ thống web hiện đại theo kiến trúc Serverless
+
+---
+
+## 📜 Bản quyền & sử dụng
+- Sử dụng dữ liệu công khai từ AQICN
+- Chỉ phục vụ mục đích học tập và nghiên cứu
+- Không sử dụng cho mục đích thương mại
