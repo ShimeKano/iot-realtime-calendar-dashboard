@@ -1,6 +1,6 @@
 # 📊 Hệ thống giám sát chất lượng không khí theo thời gian thực (AQI Big Data Time‑Series)
 
-## 🧠 Tên đề tài (đề xuất – bạn có thể dùng luôn)
+## 🧠 Tên đề tài
 
 **Xây dựng hệ thống giám sát và phân tích chất lượng không khí theo thời gian thực sử dụng Big Data và Cloud Computing**
 
