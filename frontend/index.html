@@ -2,14 +2,16 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8" />
-  <title>Dashboard AQI Thời Gian Thực & Lịch Sử</title>
+  <title>Dashboard AQI Realtime</title>
 
+  <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: #f5f7fa;
+      background: #f4f6f8;
+      margin: 0;
       padding: 20px;
     }
 
@@ -17,92 +19,143 @@
       text-align: center;
     }
 
-    .box {
+    .controls {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    select, button {
+      padding: 8px 12px;
+      font-size: 14px;
+    }
+
+    .chart-container {
+      width: 90%;
       max-width: 900px;
       margin: auto;
-      background: white;
+      background: #fff;
       padding: 20px;
-      border-radius: 10px;
+      border-radius: 8px;
     }
 
-    .controls {
-      margin-bottom: 20px;
-      display: flex;
-      gap: 10px;
-      justify-content: center;
-    }
-
-    canvas {
-      margin-top: 20px;
+    .note {
+      text-align: center;
+      margin-top: 10px;
+      font-size: 13px;
+      color: #666;
     }
   </style>
 </head>
 
 <body>
-  <div class="box">
-    <h1>📊 Lịch sử AQI – Hà Nội</h1>
 
-    <div class="controls">
-      <input type="date" id="datePicker" />
-      <button onclick="loadHistory()">Xem dữ liệu</button>
-    </div>
+<h1>📊 AQI Realtime & History Dashboard</h1>
 
-    <canvas id="aqiChart"></canvas>
-  </div>
+<div class="controls">
+  <label>
+    📅 Chọn ngày:
+    <select id="dateSelect"></select>
+  </label>
 
-  <script>
-    let chart;
+  <button onclick="loadData()">🔄 Tải dữ liệu</button>
+</div>
 
-    async function loadHistory() {
-      const date = document.getElementById("datePicker").value;
-      let url = "/api/GetHistory";
-      if (date) url += "?date=" + date;
+<div class="chart-container">
+  <canvas id="aqiChart"></canvas>
+</div>
 
-      const res = await fetch(url);
-      const json = await res.json();
+<div class="note">
+  ⏱️ Dữ liệu tự động cập nhật mỗi 5 phút
+</div>
 
-      const labels = json.data.map(d => d.time);
-      const aqiData = json.data.map(d => d.aqi);
+<script>
+  const API_URL = "/api/GetHistory";
+  const AUTO_REFRESH_MS = 5 * 60 * 1000;
 
-      drawChart(labels, aqiData);
+  let chart;
+
+  // Tạo dropdown ngày (7 ngày gần nhất)
+  function initDateDropdown() {
+    const select = document.getElementById("dateSelect");
+    select.innerHTML = "";
+
+    for (let i = 0; i < 7; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const dd = String(d.getDate()).padStart(2, "0");
+
+      const dateStr = `${yyyy}-${mm}-${dd}`;
+
+      const option = document.createElement("option");
+      option.value = dateStr;
+      option.text = dateStr;
+
+      select.appendChild(option);
+    }
+  }
+
+  async function loadData() {
+    const date = document.getElementById("dateSelect").value;
+    let url = API_URL;
+
+    if (date) {
+      url += `?date=${date}`;
     }
 
-    function drawChart(labels, data) {
-      const ctx = document.getElementById("aqiChart");
+    const res = await fetch(url);
+    const json = await res.json();
 
-      if (chart) chart.destroy();
+    renderChart(json.data || []);
+  }
 
-      chart = new Chart(ctx, {
-        type: "line",
-        data: {
-          labels: labels,
-          datasets: [{
-            label: "AQI",
-            data: data,
-            borderColor: "red",
-            backgroundColor: "rgba(255,0,0,0.2)",
-            tension: 0.3
-          }]
+  function renderChart(data) {
+    const labels = data.map(d => d.time);
+    const values = data.map(d => d.aqi);
+
+    if (chart) {
+      chart.destroy();
+    }
+
+    const ctx = document.getElementById("aqiChart");
+
+    chart = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels,
+        datasets: [{
+          label: "AQI",
+          data: values,
+          borderColor: "rgb(75, 192, 192)",
+          tension: 0.3,
+          fill: false
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: true }
         },
-        options: {
-          responsive: true,
-          scales: {
-            y: {
-              title: {
-                display: true,
-                text: "Chỉ số AQI"
-              }
-            },
-            x: {
-              title: {
-                display: true,
-                text: "Thời gian"
-              }
-            }
+        scales: {
+          y: {
+            beginAtZero: true
           }
         }
-      });
-    }
-  </script>
+      }
+    });
+  }
+
+  // Auto refresh
+  setInterval(loadData, AUTO_REFRESH_MS);
+
+  // Init
+  initDateDropdown();
+  loadData();
+</script>
+
 </body>
 </html>
