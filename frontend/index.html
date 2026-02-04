@@ -2,46 +2,107 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8" />
-  <title>IoT Realtime AQI Dashboard</title>
+  <title>Dashboard AQI Thời Gian Thực & Lịch Sử</title>
 
-  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f7fa;
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+    }
+
+    .box {
+      max-width: 900px;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+    }
+
+    .controls {
+      margin-bottom: 20px;
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    canvas {
+      margin-top: 20px;
+    }
+  </style>
 </head>
+
 <body>
-  <header>
-    <h1>🌏 Dashboard Chất lượng Không khí Realtime</h1>
-    <p>IoT Realtime Calendar Dashboard</p>
-  </header>
+  <div class="box">
+    <h1>📊 Lịch sử AQI – Hà Nội</h1>
 
-  <section class="controls">
-    <button id="btnFetch">📡 Lấy dữ liệu realtime</button>
-    <span id="status">Chưa lấy dữ liệu</span>
-  </section>
+    <div class="controls">
+      <input type="date" id="datePicker" />
+      <button onclick="loadHistory()">Xem dữ liệu</button>
+    </div>
 
-  <section class="info">
-    <h2>📍 Vị trí</h2>
-    <p id="location">Hà Nội</p>
-
-    <h2>🌫 AQI hiện tại</h2>
-    <p id="aqiValue">--</p>
-  </section>
-
-  <section class="charts">
-    <h2>📈 Biểu đồ AQI theo thời gian (Realtime)</h2>
     <canvas id="aqiChart"></canvas>
-    <p class="note">
-      * Biểu đồ thể hiện biến động AQI trong phiên truy cập (realtime, không phải dữ liệu lịch sử).
-    </p>
-  </section>
+  </div>
 
-  <section class="charts">
-    <h2>📊 Thông số môi trường</h2>
-    <canvas id="paramChart"></canvas>
-  </section>
+  <script>
+    let chart;
 
-  <script src="js/api.js"></script>
-  <script src="js/charts.js"></script>
+    async function loadHistory() {
+      const date = document.getElementById("datePicker").value;
+      let url = "/api/GetHistory";
+      if (date) url += "?date=" + date;
+
+      const res = await fetch(url);
+      const json = await res.json();
+
+      const labels = json.data.map(d => d.time);
+      const aqiData = json.data.map(d => d.aqi);
+
+      drawChart(labels, aqiData);
+    }
+
+    function drawChart(labels, data) {
+      const ctx = document.getElementById("aqiChart");
+
+      if (chart) chart.destroy();
+
+      chart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: labels,
+          datasets: [{
+            label: "AQI",
+            data: data,
+            borderColor: "red",
+            backgroundColor: "rgba(255,0,0,0.2)",
+            tension: 0.3
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: {
+              title: {
+                display: true,
+                text: "Chỉ số AQI"
+              }
+            },
+            x: {
+              title: {
+                display: true,
+                text: "Thời gian"
+              }
+            }
+          }
+        }
+      });
+    }
+  </script>
 </body>
 </html>
