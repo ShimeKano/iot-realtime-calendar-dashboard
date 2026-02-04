@@ -1,43 +1,50 @@
-export default async function (context, req) {
-  const date = req.query.date;
+const fetch = require("node-fetch");
 
-  if (!date) {
-    context.res = {
-      status: 400,
-      body: { error: "Missing date parameter (YYYY-MM-DD)" }
-    };
-    return;
-  }
-
-  const url = `https://api.openaq.org/v3/measurements?date_from=${date}T00:00:00Z&date_to=${date}T23:59:59Z&limit=10`;
-
+module.exports = async function (context, req) {
   try {
+    const date = req.query.date || "2024-01-01";
+    const apiKey = process.env.OPENAQ_API_KEY;
+
+    if (!apiKey) {
+      context.res = {
+        status: 500,
+        body: { error: "Missing OPENAQ_API_KEY" }
+      };
+      return;
+    }
+
+    const url =
+      "https://api.openaq.org/v3/measurements" +
+      "?country=VN" +
+      "&parameter=pm25" +
+      "&limit=5";
+
     const response = await fetch(url, {
       headers: {
-        "X-API-Key": process.env.OPENAQ_API_KEY
+        "X-API-Key": apiKey
       }
     });
 
     const data = await response.json();
 
     context.res = {
-      headers: { "Content-Type": "application/json" },
+      status: 200,
+      headers: {
+        "Content-Type": "application/json"
+      },
       body: {
         date,
-        count: data.results.length,
-        samples: data.results.map(item => ({
-          location: item.location?.name,
-          parameter: item.parameter,
-          value: item.value,
-          unit: item.unit,
-          time: item.date.utc
-        }))
+        count: data.results?.length || 0,
+        samples: data.results || []
       }
     };
   } catch (err) {
     context.res = {
       status: 500,
-      body: { error: "Failed to fetch OpenAQ v3 data" }
+      body: {
+        error: "Server error",
+        message: err.message
+      }
     };
   }
-}
+};
