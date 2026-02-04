@@ -2,10 +2,9 @@ const { TableClient } = require("@azure/data-tables");
 
 module.exports = async function (context, req) {
   try {
-    const connectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
-    const tableName = "AQIHistory";
+    const STORAGE_CONN = process.env.AZURE_STORAGE_CONNECTION_STRING;
 
-    if (!connectionString) {
+    if (!STORAGE_CONN) {
       context.res = {
         status: 500,
         body: { error: "Missing AZURE_STORAGE_CONNECTION_STRING" }
@@ -13,56 +12,67 @@ module.exports = async function (context, req) {
       return;
     }
 
-    const date = req.query.date; 
-    // YYYY-MM-DD (vd: 2026-02-04)
-
     const tableClient = TableClient.fromConnectionString(
-      connectionString,
-      tableName
+      STORAGE_CONN,
+      "AQIHistory"
     );
+
+    const date = req.query.date; // YYYY-MM-DD
 
     let entities = [];
 
+    /* ===============================
+       1️⃣ ĐỌC DATA
+       =============================== */
     if (date) {
-      // 🔍 Query theo ngày
       const filter = `PartitionKey eq '${date}'`;
-
-      for await (const entity of tableClient.listEntities({
+      for await (const e of tableClient.listEntities({
         queryOptions: { filter }
       })) {
-        entities.push(entity);
+        entities.push(e);
       }
     } else {
-      // 🔁 Không truyền date → lấy tối đa 100 bản ghi gần nhất
+      // fallback: lấy 100 bản ghi gần nhất
       let count = 0;
-      for await (const entity of tableClient.listEntities()) {
-        entities.push(entity);
+      for await (const e of tableClient.listEntities()) {
+        entities.push(e);
         count++;
         if (count >= 100) break;
       }
     }
 
-    // 🕒 Sort theo thời gian (RowKey là ISO time)
-    entities.sort((a, b) => a.RowKey.localeCompare(b.RowKey));
+    /* ===============================
+       2️⃣ SORT AN TOÀN (THEO RowKey)
+       =============================== */
+    entities.sort((a, b) => {
+      if (!a.rowKey || !b.rowKey) return 0;
+      return a.rowKey.localeCompare(b.rowKey);
+    });
+
+    /* ===============================
+       3️⃣ FORMAT CHO FRONTEND
+       =============================== */
+    const data = entities.map(e => ({
+      time: e.rowKey?.split("_")[0] ?? null,
+      aqi: e.aqi ?? null,
+      pm25: e.pm25 ?? null,
+      temp: e.temp ?? null,
+      humidity: e.humidity ?? null,
+      pressure: e.pressure ?? null,
+      wind: e.wind ?? null
+    }));
 
     context.res = {
       status: 200,
-      headers: { "Content-Type": "application/json" },
       body: {
         message: "AQI history fetched 📈",
-        count: entities.length,
-        data: entities.map(e => ({
-          date: e.PartitionKey,
-          time: e.RowKey,
-          aqi: e.aqi ?? null,
-          pm25: e.pm25 ?? null,
-          temp: e.temp ?? null,
-          humidity: e.humidity ?? null
-        }))
+        count: data.length,
+        data
       }
     };
+
   } catch (err) {
-    context.log.error(err);
+    context.log(err);
     context.res = {
       status: 500,
       body: {
