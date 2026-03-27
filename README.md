@@ -91,9 +91,10 @@ Dữ liệu được lưu liên tục theo thời gian → **Big Data Time‑Ser
 ### Chức năng chính:
 
 * Xem AQI theo thời gian thực
-* Xem lịch sử dữ liệu theo ngày
-* Biểu đồ trực quan (line chart)
-* Tự động cập nhật dữ liệu
+* Xem lịch sử dữ liệu theo ngày hoặc nhiều ngày
+* Chọn khung thời gian: 1 giờ, 24 giờ, 7 ngày, 1 tháng
+* Biểu đồ trực quan (line chart) với giao diện hiện đại
+* Tự động cập nhật dữ liệu mỗi 5 phút
 
 ---
 
@@ -110,8 +111,25 @@ Hệ thống tự động gọi API để lấy dữ liệu AQI tại vị trí 
 ### 3️⃣ Xem lịch sử dữ liệu
 
 * Chọn ngày cần xem
-* Chọn loại dữ liệu (AQI / PM2.5 / Nhiệt độ)
+* Chọn loại dữ liệu (AQI / PM2.5 / Nhiệt độ / Độ ẩm)
 * Biểu đồ sẽ hiển thị dữ liệu theo thời gian
+
+### 4️⃣ Sử dụng bộ chọn khung thời gian
+
+Bộ chọn **Khung thời gian** nằm trên thanh điều khiển với 4 tùy chọn:
+
+| Tùy chọn | Mô tả |
+|----------|-------|
+| **1 giờ** | Hiển thị dữ liệu trong 1 giờ gần nhất (hôm nay) hoặc 1 giờ cuối cùng của ngày đã chọn. Nhãn trục X: HH:mm |
+| **24 giờ** | Hiển thị dữ liệu trong 24 giờ gần nhất (hôm nay) hoặc toàn bộ ngày đã chọn. Nhãn trục X: HH:mm |
+| **7 ngày** | Tự động tải dữ liệu 7 ngày liên tiếp tính từ ngày đã chọn, gộp tất cả bản ghi và sắp xếp theo thời gian. Nhãn trục X: DD/MM |
+| **1 tháng** | Tự động tải dữ liệu 30 ngày liên tiếp tính từ ngày đã chọn. Nhãn trục X: DD/MM |
+
+> **Lưu ý:**
+> - Với **1 giờ** và **24 giờ**: ô chọn ngày xác định ngày cụ thể cần xem. Để xem hôm nay, để mặc định hoặc chọn ngày hiện tại.
+> - Với **7 ngày** và **1 tháng**: ô chọn ngày xác định ngày kết thúc của khoảng thời gian.
+> - Nếu chưa có dữ liệu, biểu đồ sẽ hiển thị placeholder (đường trống) và thông báo bằng tiếng Việt.
+> - Dữ liệu tự động làm mới mỗi **5 phút**.
 
 ---
 
